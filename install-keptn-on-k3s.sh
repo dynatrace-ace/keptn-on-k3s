@@ -13,6 +13,7 @@ JMETER="false"
 CERTS="selfsigned"
 SLACK="false"
 BRIDGE_PASSWORD="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)"
+DOMAIN_EXT="nip.io"
 
 function get_ip {
   if [[ "${MY_IP}" == "none" ]]; then
@@ -57,7 +58,7 @@ function check_k8s {
 }
 
 function generate_certificate {
-  openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/O=keptn/CN=*.{MY_IP}.xip.io" -keyout /tmp/certificate.key -out /tmp/certificate.crt
+  openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=US/O=keptn/CN=*.{MY_IP}.{DOMAIN_EXT}" -keyout /tmp/certificate.key -out /tmp/certificate.crt
   "${K3SKUBECTLCMD}" "${K3SKUBECTLOPT}" create secret tls keptn-tls -n keptn --cert /tmp/certificate.crt --key /tmp/certificate.key
   rm /tmp/certificate.crt /tmp/certificate.key
 }
@@ -168,7 +169,7 @@ function install_keptn {
   cat << EOF | "${K3SKUBECTLCMD}" "${K3SKUBECTLOPT}" apply -n keptn -f -
 apiVersion: v1
 data:
-  app_domain: ${MY_IP}.xip.io
+  app_domain: ${MY_IP}.${DOMAIN_EXT}
 kind: ConfigMap
 metadata:
   creationTimestamp: null
@@ -186,11 +187,11 @@ metadata:
 spec:
   tls:
   - hosts:
-    - api.keptn.${MY_IP}.xip.io
-    - bridge.keptn.${MY_IP}.xip.io
+    - api.keptn.${MY_IP}.${DOMAIN_EXT}
+    - bridge.keptn.${MY_IP}.${DOMAIN_EXT}
     secretName: keptn-tls
   rules:
-    - host: api.keptn.${MY_IP}.xip.io
+    - host: api.keptn.${MY_IP}.${DOMAIN_EXT}
       http:
         paths:
           - path: /
@@ -204,7 +205,7 @@ spec:
             backend:
               serviceName: api-gateway-nginx
               servicePort: 80
-    - host: bridge.keptn.${MY_IP}.xip.io
+    - host: bridge.keptn.${MY_IP}.${DOMAIN_EXT}
       http:
         paths:
           - path: /
@@ -217,8 +218,8 @@ EOF
 }
 
 function print_config {
-  echo "API URL   :      ${PREFIX}://api.keptn.$MY_IP.xip.io"
-  echo "Bridge URL:      ${PREFIX}://bridge.keptn.$MY_IP.xip.io"
+  echo "API URL   :      ${PREFIX}://api.keptn.$MY_IP.$DOMAIN_EXT"
+  echo "Bridge URL:      ${PREFIX}://bridge.keptn.$MY_IP.$DOMAIN_EXT"
   echo "Bridge Username: keptn"
   echo "Bridge Password: $BRIDGE_PASSWORD"
   echo "API Token :      $KEPTN_API_TOKEN"
@@ -226,7 +227,7 @@ function print_config {
   cat << EOF
 To use keptn:
 - Install the keptn CLI: curl -sL https://get.keptn.sh | sudo -E bash
-- Authenticate: keptn auth  --api-token "${KEPTN_API_TOKEN}" --endpoint "${PREFIX}://api.keptn.$MY_IP.xip.io"
+- Authenticate: keptn auth  --api-token "${KEPTN_API_TOKEN}" --endpoint "${PREFIX}://api.keptn.$MY_IP.$DOMAIN_EXT"
 EOF
 }
 
